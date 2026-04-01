@@ -1,0 +1,1 @@
+{"type": "Algorithm", "checkpoint_version": "1.1", "format": "cloudpickle", "state_file": "C:\\Users\\mahar\\OneDrive\\Documents\\debris management\\outputs_resume_smoke\\checkpoints\\algorithm_state.pkl", "policy_ids": ["shared_policy"], "ray_version": "2.40.0", "ray_commit": "22541c38dbef25286cd6d19f1c151bf4fd62f2ed"}

@@ -1,0 +1,45 @@
+{
+  "created_at_utc": "2026-03-14T06:50:36.194512+00:00",
+  "algorithm": "PPO",
+  "best_checkpoint": "Checkpoint(filesystem=local, path=C:\\Users\\mahar\\OneDrive\\Documents\\debris management\\outputs_smoke2\\checkpoints)",
+  "best_reward": -1.2158327014653503,
+  "env_config": {
+    "num_agents": 3,
+    "num_targets": 5,
+    "max_targets": 5,
+    "max_episode_steps": 200,
+    "world_range_km": 250.0,
+    "random_seed": 42,
+    "target_positions": [
+      [
+        155.06886310642503,
+        139.5246899465747,
+        81.87117657193308
+      ],
+      [
+        -200.82804234892345,
+        54.10447068524355,
+        -59.05812475025305
+      ],
+      [
+        172.25511972343415,
+        117.76854807919659,
+        65.18839356262566
+      ],
+      [
+        177.2468361549866,
+        -109.48825431709561,
+        74.59614639791273
+      ],
+      [
+        -86.769611342205,
+        226.31170179178133,
+        -29.111223705237695
+      ]
+    ]
+  },
+  "debris_cache": "C:\\Users\\mahar\\OneDrive\\Documents\\debris management\\data\\high_risk_tle_cache.json",
+  "num_workers": 1,
+  "num_envs_per_worker": 1,
+  "seed": 42
+}
