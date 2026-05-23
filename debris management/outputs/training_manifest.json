@@ -1,5 +1,5 @@
 {
-  "created_at_utc": "2026-03-19T12:01:48.645557+00:00",
+  "created_at_utc": "2026-05-23T17:31:41.462640+00:00",
   "algorithm": "PPO",
   "training_topology": "decentralized_ippo",
   "observation_layout": "decentralized_local_target_matrix",
@@ -8,7 +8,7 @@
     "policy_agent_1",
     "policy_agent_2"
   ],
-  "latest_checkpoint": "C:\\Users\\mahar\\OneDrive\\Documents\\debris management\\outputs\\checkpoints",
+  "latest_checkpoint": "C:\\Users\\mahar\\Debrimanagement\\debris management\\outputs\\checkpoints",
   "best_checkpoint": "C:\\Users\\mahar\\OneDrive\\Documents\\debris management\\outputs\\checkpoints",
   "best_reward": 49.432147760842916,
   "env_config": {
@@ -22,38 +22,11 @@
     "fuel_capacity_delta_v": 300.0,
     "agent_spawn_radius_km": 15.0,
     "target_position_noise_km": 4.0,
-    "random_seed": 42,
-    "target_positions": [
-      [
-        155.06886310642503,
-        139.5246899465747,
-        81.87117657193308
-      ],
-      [
-        -200.82804234892345,
-        54.10447068524355,
-        -59.05812475025305
-      ],
-      [
-        172.25511972343415,
-        117.76854807919659,
-        65.18839356262566
-      ],
-      [
-        177.2468361549866,
-        -109.48825431709561,
-        74.59614639791273
-      ],
-      [
-        -86.769611342205,
-        226.31170179178133,
-        -29.111223705237695
-      ]
-    ]
+    "random_seed": 42
   },
-  "debris_cache": "C:\\Users\\mahar\\OneDrive\\Documents\\debris management\\data\\high_risk_tle_cache.json",
-  "num_workers": 6,
-  "num_envs_per_worker": 2,
+  "debris_cache": null,
+  "num_workers": 1,
+  "num_envs_per_worker": 1,
   "seed": 42,
   "resumed_from_checkpoint": null
 }

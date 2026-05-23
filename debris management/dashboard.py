@@ -141,63 +141,169 @@ def load_algorithm_from_checkpoint(checkpoint_path: str):
 def apply_dashboard_theme() -> None:
     st.set_page_config(
         page_title="Orbital Debris MARL Dashboard",
-        page_icon="O",
+        page_icon="🌌",
         layout="wide",
+        initial_sidebar_state="expanded",
     )
     st.markdown(
         """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+        
+        /* Global Background and Font */
+        .stApp {
+            background: radial-gradient(circle at center, #0B1021 0%, #04060C 100%);
+            color: #E2E8F0;
+            font-family: 'Outfit', sans-serif !important;
+        }
+
         .main .block-container {
-            padding-top: 1.15rem;
+            padding-top: 1.5rem;
             padding-bottom: 2rem;
             max-width: 1560px;
         }
+
+        /* Hero Card */
         .hero-card {
-            background: linear-gradient(130deg, #071a2b 0%, #0f3b5c 46%, #0f766e 100%);
-            color: #f8fafc;
-            padding: 1.45rem 1.6rem;
+            background: linear-gradient(135deg, rgba(15, 59, 92, 0.6) 0%, rgba(15, 118, 110, 0.6) 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: #F8FAFC;
+            padding: 2rem;
             border-radius: 24px;
-            margin-bottom: 1rem;
-            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
+        
+        .hero-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 60px rgba(15, 118, 110, 0.4);
+        }
+
         .hero-title {
-            font-size: 2rem;
+            font-size: 2.2rem;
             font-weight: 700;
-            letter-spacing: 0.01em;
-            margin-bottom: 0.35rem;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
+
         .hero-copy {
-            font-size: 1rem;
-            opacity: 0.93;
-            max-width: 62rem;
+            font-size: 1.05rem;
+            opacity: 0.95;
+            max-width: 65rem;
+            line-height: 1.6;
         }
+
+        /* Summary Card */
         .summary-card {
-            background: linear-gradient(180deg, rgba(248, 250, 252, 1) 0%, rgba(240, 249, 255, 1) 100%);
-            border: 1px solid rgba(14, 116, 144, 0.12);
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 18px;
-            padding: 0.95rem 1rem;
-            margin-top: 0.5rem;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
         }
+        
+        .summary-card:hover {
+            border: 1px solid rgba(14, 116, 144, 0.4);
+            box-shadow: 0 10px 30px rgba(14, 116, 144, 0.2);
+        }
+
         .summary-title {
-            font-size: 0.9rem;
+            font-size: 1rem;
             font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 0.3rem;
+            color: #38BDF8;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
+
         .summary-copy {
             font-size: 0.95rem;
-            color: #334155;
-            line-height: 1.45;
+            color: #CBD5E1;
+            line-height: 1.5;
         }
-        .stMetric {
-            background: #f8fafc;
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            border-radius: 18px;
-            padding: 0.8rem;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+
+        /* Metrics Containers */
+        [data-testid="stMetric"] {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
         }
-        div[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+        
+        [data-testid="stMetric"]:hover {
+            transform: translateY(-3px);
+            border-color: rgba(56, 189, 248, 0.5);
+            box-shadow: 0 12px 40px rgba(56, 189, 248, 0.15);
+        }
+        
+        [data-testid="stMetricValue"] {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #F8FAFC;
+        }
+
+        /* Sidebar Styling */
+        [data-testid="stSidebar"] {
+            background: rgba(15, 23, 42, 0.8) !important;
+            backdrop-filter: blur(20px) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        [data-testid="stSidebar"] h1 {
+            color: #38BDF8;
+            font-weight: 700;
+        }
+        
+        /* Custom Buttons */
+        button[kind="primary"] {
+            background: linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.5px;
+            padding: 0.5rem 1rem !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4) !important;
+        }
+        
+        button[kind="primary"]:hover {
+            transform: scale(1.02) !important;
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.6) !important;
+        }
+        
+        /* Tabs Styling */
+        button[data-baseweb="tab"] {
+            background: transparent;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.2s ease;
+        }
+        button[data-baseweb="tab"]:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        div[data-baseweb="tab-highlight"] {
+            background-color: #38BDF8 !important;
+        }
+        
+        /* Dataframes */
+        [data-testid="stDataFrame"] {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
         </style>
         """,
@@ -646,6 +752,7 @@ def create_trajectory_figure(result: Mapping[str, Any], playback_step: int) -> g
     )
 
     figure.update_layout(
+        template="plotly_dark",
         height=660,
         margin={"l": 10, "r": 10, "t": 55, "b": 10},
         paper_bgcolor="rgba(0,0,0,0)",
@@ -656,7 +763,7 @@ def create_trajectory_figure(result: Mapping[str, Any], playback_step: int) -> g
             "xaxis_title": "Relative X (km)",
             "yaxis_title": "Relative Y (km)",
             "zaxis_title": "Relative Z (km)",
-            "bgcolor": "rgba(248,250,252,1)",
+            "bgcolor": "rgba(15,23,42,0.6)",
         },
     )
     return figure
@@ -735,6 +842,7 @@ def create_progress_figure(result: Mapping[str, Any]) -> go.Figure:
     )
 
     figure.update_layout(
+        template="plotly_dark",
         height=500,
         margin={"l": 10, "r": 10, "t": 60, "b": 10},
         paper_bgcolor="rgba(0,0,0,0)",
@@ -813,6 +921,7 @@ def create_fleet_efficiency_figure(result: Mapping[str, Any]) -> go.Figure:
     )
 
     figure.update_layout(
+        template="plotly_dark",
         height=500,
         margin={"l": 10, "r": 10, "t": 60, "b": 10},
         paper_bgcolor="rgba(0,0,0,0)",

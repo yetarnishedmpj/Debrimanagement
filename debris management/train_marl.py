@@ -473,15 +473,20 @@ def main() -> int:
         .resources(num_gpus=num_gpus)
         .training(
             model={
-                "fcnet_hiddens": [256, 256],
+                "fcnet_hiddens": [512, 512, 256],
+                "vf_share_layers": False,
             },
             gamma=0.995,
             lr=args.learning_rate,
+            lr_schedule=[[0, args.learning_rate], [args.stop_timesteps, 1e-5]],
             lambda_=0.97,
             clip_param=0.2,
-            entropy_coeff=0.01,
+            entropy_coeff=0.05,
+            entropy_coeff_schedule=[[0, 0.05], [int(args.stop_timesteps * 0.8), 0.005]],
             vf_loss_coeff=1.0,
             grad_clip=0.5,
+            use_critic=True,
+            use_gae=True,
             train_batch_size=args.train_batch_size,
             minibatch_size=args.minibatch_size,
             num_epochs=args.num_epochs,
