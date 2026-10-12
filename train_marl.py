@@ -19,12 +19,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
-from fetch_data import load_cached_records, records_to_relative_positions
+from fetch_data import load_cached_records, records_to_relative_positions, records_to_relative_states
 from orbital_env import OrbitalDebrisRemovalEnv
 
 LOGGER = logging.getLogger(__name__)
 ENV_NAME = "orbital_debris_marl_env"
 TRAINING_TOPOLOGY = "decentralized_ippo"
+OBSERVATION_LAYOUT = "decentralized_target_matrix_with_availability_v2"
 POLICY_ID_PREFIX = "policy_agent"
 DEFAULT_CAPTURE_RADIUS_KM = 12.0
 DEFAULT_TRANSLATION_STEP_KM = 18.0
@@ -189,13 +190,15 @@ def build_env_config(args: argparse.Namespace) -> Dict[str, Any]:
     if args.debris_cache:
         try:
             records = load_cached_records(args.debris_cache.resolve())
-            target_positions = records_to_relative_positions(
+            target_positions, target_velocities = records_to_relative_states(
                 records,
                 world_range_km=args.world_range_km,
                 max_targets=env_config["max_targets"],
             )
             if target_positions:
                 env_config["target_positions"] = target_positions
+                if target_velocities:
+                    env_config["target_velocities"] = target_velocities
                 env_config["num_targets"] = min(len(target_positions), env_config["max_targets"])
                 LOGGER.info(
                     "Loaded %d target seeds from %s",
@@ -291,6 +294,13 @@ def describe_manifest_compatibility(
                 "points to an old CTDE checkpoint"
             )
         return f"the existing manifest was trained with '{topology}', not '{TRAINING_TOPOLOGY}'"
+
+    layout = str(manifest.get("observation_layout", "")).strip()
+    if layout and layout != OBSERVATION_LAYOUT:
+        return (
+            f"the saved checkpoint uses observation layout '{layout}', which is incompatible "
+            f"with the current '{OBSERVATION_LAYOUT}'"
+        )
 
     previous_env = manifest.get("env_config", {})
     mismatches = []
@@ -398,7 +408,7 @@ def write_manifest(
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "algorithm": "PPO",
         "training_topology": TRAINING_TOPOLOGY,
-        "observation_layout": "decentralized_local_target_matrix",
+        "observation_layout": OBSERVATION_LAYOUT,
         "policy_ids": list(policy_ids),
         "latest_checkpoint": latest_checkpoint,
         "best_checkpoint": best_checkpoint,

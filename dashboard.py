@@ -17,7 +17,11 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from fetch_data import load_cached_records, records_to_relative_positions
+from fetch_data import (
+    load_cached_records,
+    records_to_relative_positions,
+    records_to_relative_states,
+)
 from orbital_env import OrbitalDebrisRemovalEnv
 
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
@@ -63,6 +67,20 @@ def load_target_positions_from_cache(
 ) -> List[List[float]]:
     records = load_cached_records(Path(cache_path).resolve())
     return records_to_relative_positions(
+        records,
+        world_range_km=world_range_km,
+        max_targets=max_targets,
+    )
+
+
+@st.cache_data(show_spinner=False)
+def load_target_states_from_cache(
+    cache_path: str,
+    world_range_km: float,
+    max_targets: int,
+) -> Tuple[List[List[float]], List[List[float]]]:
+    records = load_cached_records(Path(cache_path).resolve())
+    return records_to_relative_states(
         records,
         world_range_km=world_range_km,
         max_targets=max_targets,
@@ -315,6 +333,8 @@ def fuel_fraction_from_observation(observation: Any) -> float:
     local_targets = extract_local_targets(observation)
     if local_targets.size == 0:
         return 1.0
+    if local_targets.shape[-1] >= 6:
+        return float(np.clip((local_targets[0, 5] + 1.0) / 2.0, 0.0, 1.0))
     return float(np.clip((local_targets[0, 0] + 1.0) / 2.0, 0.0, 1.0))
 
 
@@ -358,6 +378,9 @@ def cooperative_autopilot_actions(
 
         for target_index in range(local_targets.shape[0]):
             row = local_targets[target_index]
+            # If explicit availability indicator m_j is present, skip inactive targets
+            if local_targets.shape[-1] >= 6 and row[0] <= 0.0:
+                continue
             relative_vector = row[1:4]
             distance = float(row[4])
             if np.linalg.norm(relative_vector) <= 1e-6 and distance <= 1e-6:
@@ -480,13 +503,15 @@ def build_env_config(
     }
 
     if debris_cache_path.strip():
-        target_positions = load_target_positions_from_cache(
+        target_positions, target_velocities = load_target_states_from_cache(
             debris_cache_path,
             world_range_km=world_range_km,
             max_targets=config["max_targets"],
         )
         if target_positions:
             config["target_positions"] = target_positions
+            if target_velocities:
+                config["target_velocities"] = target_velocities
             config["num_targets"] = min(len(target_positions), config["max_targets"])
 
     return config
@@ -832,7 +857,7 @@ def create_progress_figure(result: Mapping[str, Any]) -> go.Figure:
         go.Bar(
             x=control_steps,
             y=delta_v_per_step,
-            name="Delta-V per step",
+            name="Fuel-cost proxy per step",
             marker={"color": "#2563eb"},
             opacity=0.55,
         ),
@@ -853,9 +878,9 @@ def create_progress_figure(result: Mapping[str, Any]) -> go.Figure:
     figure.update_xaxes(title_text="Observation step", row=1, col=1)
     figure.update_xaxes(title_text="Control step", row=2, col=1)
     figure.update_yaxes(title_text="Targets remaining", row=1, col=1, secondary_y=False)
-    figure.update_yaxes(title_text="Captured targets", row=1, col=1, secondary_y=True)
+    figure.update_yaxes(title_text="Rendezvous arrivals", row=1, col=1, secondary_y=True)
     figure.update_yaxes(title_text="Mean fuel fraction", row=2, col=1, secondary_y=False, range=[0, 1.05])
-    figure.update_yaxes(title_text="Delta-V", row=2, col=1, secondary_y=True)
+    figure.update_yaxes(title_text="Fuel-cost proxy (heuristic)", row=2, col=1, secondary_y=True)
     return figure
 
 
@@ -905,7 +930,7 @@ def create_fleet_efficiency_figure(result: Mapping[str, Any]) -> go.Figure:
     reward_by_agent = step_rewards.sum(axis=0) if step_rewards.size else np.zeros((agent_fuel.shape[1],))
 
     figure.add_trace(
-        go.Bar(x=agent_ids, y=total_delta_v_by_agent, name="Total Delta-V", marker={"color": "#2563eb"}),
+        go.Bar(x=agent_ids, y=total_delta_v_by_agent, name="Total fuel-cost proxy", marker={"color": "#2563eb"}),
         row=2,
         col=1,
     )
@@ -1246,7 +1271,7 @@ def render_metric_rows(result: Mapping[str, Any], metrics: Mapping[str, Any]) ->
     metric_row_2[1].metric("Captures", f"{metrics['captured_targets']} / {result['env_config']['num_targets']}")
     metric_row_2[2].metric("Fuel used", f"{metrics['fuel_used_pct']:.1f}%")
     metric_row_2[3].metric("Mean final fuel", f"{metrics['mean_final_fuel_pct']:.1f}%")
-    metric_row_2[4].metric("Total Delta-V", f"{metrics['total_delta_v']:.2f}")
+    metric_row_2[4].metric("Fuel-cost proxy", f"{metrics['total_delta_v']:.2f}", help="Heuristic fuel-cost proxy (not physically validated Delta-V)")
 
 
 def main() -> None:
@@ -1256,7 +1281,7 @@ def main() -> None:
         <div class="hero-card">
             <div class="hero-title">Orbital Debris MARL Mission Dashboard</div>
                 <div class="hero-copy">
-                    Tune fleet size, Delta-V economics, capture geometry, and reward shaping in one place.
+                    Tune fleet size, fuel-cost proxy economics, rendezvous geometry, and reward shaping in one place.
                     Run the built-in Cooperative Autopilot immediately, or switch to a trained RL checkpoint
                     to compare how a decentralized learned swarm behaves under the same orbital conditions.
                 </div>

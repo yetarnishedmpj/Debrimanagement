@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Tuple
 
-from fetch_data import load_cached_records, records_to_relative_positions
+from fetch_data import load_cached_records, records_to_relative_positions, records_to_relative_states
 from orbital_env import OrbitalDebrisRemovalEnv
 from train_marl import ENV_NAME, TRAINING_TOPOLOGY, policy_id_for_agent
 
@@ -106,13 +106,15 @@ def resolve_env_config(args: argparse.Namespace, manifest: Mapping[str, Any]) ->
     if cache_candidate:
         try:
             records = load_cached_records(cache_candidate.resolve())
-            target_positions = records_to_relative_positions(
+            target_positions, target_velocities = records_to_relative_states(
                 records,
                 world_range_km=float(env_config.get("world_range_km", 250.0)),
                 max_targets=int(env_config.get("max_targets", env_config.get("num_targets", 5))),
             )
             if target_positions:
                 env_config["target_positions"] = target_positions
+                if target_velocities:
+                    env_config["target_velocities"] = target_velocities
                 env_config["num_targets"] = min(
                     len(target_positions),
                     int(env_config.get("max_targets", len(target_positions))),
