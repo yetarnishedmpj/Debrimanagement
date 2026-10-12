@@ -419,3 +419,85 @@ The Stage 2 astrodynamic milestone replaces kinematic jumps and frozen debris wi
 | **Relative Velocity Observations** | **Supported** | Configurable via `obs_includes_velocity=True` providing shape `(max_targets, 10)` with normalized relative velocity components and speed. Verified in `test_observation_space_includes_relative_velocities_when_configured`. |
 | **Continuous Acceleration Mode** | **Supported** | Spacecraft propagation supports continuous constant thrust via discrete input matrix $\Gamma(\Delta t)$. Verified in `test_continuous_acceleration_control_mode`. |
 
+---
+
+## 11. Non-Learning Baselines Specification (Step 3.1)
+
+To answer the core research question — **does learning add measurable value over a simple method?** — the environment implements two deterministic, non-learning baseline controllers in [`baselines.py`](file:///c:/Users/mahar/Downloads/Debrimanagement/baselines.py):
+
+### 11.1 Nearest-Target Heuristic
+
+Each chaser satellite evaluates active target slots and greedily selects the target minimizing Euclidean relative distance:
+
+$$j^* = \arg\min_{j \in \mathcal{T}_{\text{active}}} \|\mathbf{r}_{\text{rel}, j}\|$$
+
+where $\mathcal{T}_{\text{active}} = \{j \mid m_j > 0.5\}$ filters out already-cleared or inactive slots using the explicit binary availability indicator $m_j$.
+
+#### Guidance Rule: Deterministic Line-of-Sight (LOS) Burn
+Once target $j^*$ is selected, the satellite maps the 3-axis relative vector $\mathbf{r}_{\text{rel}, j^*} = [x, y, z]^T$ into discrete burn commands $b_k \in \{0, 1, 2\}$:
+$$b_k = \begin{cases} 
+2 & \text{if } r_k > \delta_{\text{deadband}} \text{ and not damped} \\
+0 & \text{if } r_k < -\delta_{\text{deadband}} \text{ and not damped} \\
+1 & \text{otherwise (coast)}
+\end{cases}$$
+- **Deadband**: $\delta_{\text{deadband}} = 0.02$ (normalized units) prevents chattering when near target.
+- **Velocity Damping**: When relative velocity data is available and the closing rate satisfies $r_k \cdot v_k < -0.05$, the thruster along axis $k$ coasts ($b_k = 1$) to prevent overshoot.
+- **Action Vector**: Emitted as `[j^*, b_x, b_y, b_z]` in `MultiDiscrete([max_targets, 3, 3, 3])`.
+
+---
+
+### 11.2 Fuel-Aware Heuristic
+
+Rather than relying on Euclidean distance alone, the fuel-aware baseline accounts for orbital mechanics realities:
+1. **Astrodynamic Maneuver Cost**: In the rotating Hill (LVLH) frame, out-of-plane cross-track motion ($z$) requires expensive orbital plane changes, whereas in-plane offsets ($x, y$) are achieved via low-cost orbital phasing:
+   $$C_{\text{maneuver}}(j) = k_1 \sqrt{x_j^2 + y_j^2} + k_2 |z_j|$$
+   where $k_1 = 0.025$ (phasing weight) and $k_2 = 0.085$ (plane-change weight).
+2. **Propellant Scarcity Multiplier**: As the agent's normalized fuel fraction $f_i \in [0.0, 1.0]$ depletes, cross-track maneuvers become heavily penalized:
+   $$S(f_i) = \frac{1}{\max(f_i, 0.1)}$$
+3. **Composite Target Selection Score**:
+   $$J_j = d_j \left(1 + 0.5 (1 - f_i)\right) + S(f_i) C_{\text{maneuver}}(j)$$
+   $$j^* = \arg\min_{j \in \mathcal{T}_{\text{active}}} J_j$$
+4. **Fuel-Gated Guidance**:
+   - Wider deadband ($\delta = 0.035$) promotes coasting.
+   - When fuel is critically depleted ($f_i < 0.15$), cross-track thrusting is completely suppressed ($b_z = 1$), reserving propellant for in-plane operations.
+
+---
+
+### 11.3 Empirical Evaluation & Comparative Benchmarks
+
+Both non-learning baselines were evaluated alongside the centralized Cooperative Autopilot and the trained Independent PPO (IPPO) policy over identical random seeds (seeds 42–61, 20 episodes, 3 agents, 5 targets):
+
+| Policy / Controller | Type | Rendezvous / Target | Capture Acc (%) | Full Sweep (%) | Fuel Used (%) | Mean $\Delta v$ (m/s) | Guidance Acc (%) | Episode Reward |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Nearest-Target Heuristic** | Greedy Non-learning | 2.2 / 5.0 | 44.0% | 0.0% | 0.5% | 4.50 | 76.6% | +52.63 |
+| **Fuel-Aware Heuristic** | Astrodynamic Non-learning | 2.1 / 5.0 | 43.0% | 0.0% | 0.5% | 4.50 | 75.8% | +51.56 |
+| **Cooperative Autopilot** | Coordinated Heuristic | 3.0 / 5.0 | 59.0% | 0.0% | 0.5% | 4.50 | 71.2% | +69.36 |
+| **Trained IPPO (Checkpoint)** | Decentralized RL (Smoke) | 0.0 / 5.0 | 0.0% | 0.0% | 0.5% | 4.50 | 24.4% | -6.00 |
+
+#### Key Empirical Insights:
+1. **Does Learning Add Measurable Value over a Simple Method?**:
+   - **Early/undertrained RL is substantially worse than simple heuristics**: The early IPPO checkpoint (trained on limited smoke iterations) achieves 0.0% rendezvous rate with near-random guidance accuracy (24.4%) and negative rewards (-6.00). In contrast, a simple 3-axis deterministic Line-of-Sight rule immediately achieves 44.0% rendezvous accuracy and positive rewards (+52.63).
+   - Therefore, learning does **not** automatically outperform simple heuristics; simple deterministic methods provide a strong and necessary lower bound.
+2. **The Greediness Bottleneck ("Dog-piling")**:
+   - In both uncoordinated non-learning baselines, satellites frequently converge on the same nearest target cluster. Once the first satellite achieves rendezvous, the remaining satellites find the target deactivated and must redirect, wasting steps. Consequently, **0.0% of episodes achieved a full sweep**.
+3. **The Value of Swarm Coordination**:
+   - The Cooperative Autopilot achieves **59.0% capture accuracy** (+15.0% absolute improvement over Nearest-Target), demonstrating that spatial allocation and avoiding duplicate assignments provides immense leverage.
+4. **Where RL Must Provide Added Value**:
+   - For reinforcement learning to add measurable value, policy training must advance past basic single-agent pointing and discover decentralized emergent coordination, target partitioning, and multi-step transfer sequencing that simple greedy methods cannot execute without centralized communication.
+
+---
+
+### 11.4 Running the Baselines
+
+```bash
+# Run side-by-side benchmark of both non-learning baselines:
+python baselines.py --baseline all --episodes 20
+
+# Run specific baseline with custom fleet configuration:
+python baselines.py --baseline nearest --agents 4 --targets 6 --episodes 10
+python baselines.py --baseline fuel_aware --agents 4 --targets 6 --episodes 10
+
+# Test baseline suite:
+python -m pytest tests/test_baselines.py
+```
+

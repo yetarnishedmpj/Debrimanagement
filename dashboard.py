@@ -3,6 +3,7 @@ Interactive dashboard for exploring the orbital debris MARL environment.
 
 The dashboard is intentionally useful before full RL training is complete:
 - Cooperative Autopilot mode lets you stress-test the physics and reward model.
+- Nearest-Target & Fuel-Aware Baselines provide deterministic benchmarks (Step 3.1).
 - RL Checkpoint mode lets you compare a trained decentralized policy against the same scenario.
 """
 
@@ -22,6 +23,7 @@ from fetch_data import (
     records_to_relative_positions,
     records_to_relative_states,
 )
+from baselines import FuelAwarePolicy, NearestTargetPolicy
 from orbital_env import OrbitalDebrisRemovalEnv
 
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
@@ -438,6 +440,10 @@ def choose_actions(
 ) -> Dict[str, np.ndarray]:
     if controller_mode == "Cooperative Autopilot":
         return cooperative_autopilot_actions(observations)
+    if controller_mode == "Nearest-Target Baseline":
+        return NearestTargetPolicy().choose_actions(observations)
+    if controller_mode == "Fuel-Aware Baseline":
+        return FuelAwarePolicy().choose_actions(observations)
 
     from train_marl import policy_id_for_agent
 
@@ -1070,9 +1076,18 @@ def render_sidebar() -> Tuple[Dict[str, Any], str, str, bool]:
 
         controller_mode = st.radio(
             "Controller",
-            options=["Cooperative Autopilot", "RL Checkpoint"],
+            options=[
+                "Cooperative Autopilot",
+                "Nearest-Target Baseline",
+                "Fuel-Aware Baseline",
+                "RL Checkpoint",
+            ],
             index=0,
-            help="Cooperative Autopilot is a built-in coordinated heuristic. RL Checkpoint runs the trained decentralized policy.",
+            help=(
+                "Cooperative Autopilot coordinates the swarm. "
+                "Nearest-Target and Fuel-Aware are non-learning baselines. "
+                "RL Checkpoint runs the trained decentralized policy."
+            ),
         )
         checkpoint_path = st.text_input(
             "Checkpoint path",
